@@ -1,0 +1,22 @@
+version: "3.8"
+
+services:
+  sse-server:
+    build: .
+    container_name: sse-server
+    restart: always
+    environment:
+      - REDIS_URL=${REDIS_URL}
+      - PORT=3000
+    networks:
+      - loopspa-network
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    ports:
+      - "3000:3000"
+
+networks:
+  loopspa-network:
+    external: true
