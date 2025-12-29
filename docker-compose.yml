@@ -14,9 +14,8 @@ services:
       resources:
         limits:
           memory: 256M
-    ports:
-      - "3000:3000"
 
 networks:
   loopspa-network:
+
     external: true
