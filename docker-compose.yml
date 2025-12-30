@@ -10,6 +10,7 @@ services:
       - PORT=3000
     networks:
       - loopspa-network
+      - dokploy-network   # <--- ADICIONEI AQUI (Conexão com a Internet/Dokploy)
     deploy:
       resources:
         limits:
@@ -17,5 +18,6 @@ services:
 
 networks:
   loopspa-network:
-
+    external: true
+  dokploy-network:        # <--- ADICIONEI AQUI (Declaração da rede)
     external: true
