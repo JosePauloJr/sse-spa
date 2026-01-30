@@ -4,14 +4,14 @@ const Redis = require('ioredis');
 const cors = require('cors');
 
 const app = express();
-app.use(cors());
+app.use(cors()); // Libera acesso para seu frontend
 
 // 1. Conexão com Redis
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
-const redisClient = new Redis(REDIS_URL);
-const redisSubscriber = new Redis(REDIS_URL);
+const redisClient = new Redis(REDIS_URL); // Para consultar tokens
+const redisSubscriber = new Redis(REDIS_URL); // Para escutar canais
 
-// Tratamento de erros globais do Redis
+// Tratamento de erros globais do Redis (evita que o servidor caia se o Redis oscilar)
 redisClient.on('error', (err) => console.error('❌ Redis Client Error:', err));
 redisSubscriber.on('error', (err) => console.error('❌ Redis Subscriber Error:', err));
 
@@ -21,13 +21,12 @@ app.get('/events', async (req, res) => {
     const { token, type } = req.query;
 
     // --- SEGURANÇA 🔒 ---
-    // Agora validamos o token E o tipo (ex: chats, pipeline, conversa)
+    // Valida se Token e Tipo foram enviados
     if (!token || !type) {
         return res.status(401).json({ error: 'Token e Tipo (type) são obrigatórios' });
     }
 
-    // A busca no Redis agora respeita o prefixo definido no n8n
-    // Ex: token:chats:XYZ ou token:pipeline:XYZ
+    // Busca no Redis respeitando o padrão: token:chats:XYZ ou token:pipeline:XYZ
     const redisKey = `token:${type}:${token}`;
     const permissionChannel = await redisClient.get(redisKey);
 
@@ -39,13 +38,14 @@ app.get('/events', async (req, res) => {
 
     console.log(`✅ Cliente autorizado! Fluxo: ${type} -> Canal: ${permissionChannel}`);
 
-    // Configura Headers do SSE
-    res.setHeader('Content-Type', 'text/event-stream');
+    // --- CONFIGURAÇÃO SSE (COM FIX DE ENCODING) ---
+    // Adicionado '; charset=utf-8' para suportar Emojis e Acentos
+    res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
     res.flushHeaders();
 
-    // Cria uma conexão Redis dedicada para este cliente
+    // Cria uma conexão Redis dedicada para este cliente (Subscriber isolado)
     const localSub = redisSubscriber.duplicate();
     
     try {
@@ -57,23 +57,24 @@ app.get('/events', async (req, res) => {
 
     // Repassa mensagens do Redis para o Front
     localSub.on('message', (channel, message) => {
+        // Envia o dado mantendo a formatação original
         res.write(`data: ${message}\n\n`);
     });
 
-    // Heartbeat para evitar timeout (30s)
+    // Envia um "Heartbeat" a cada 30s para manter a conexão viva
     const keepAlive = setInterval(() => {
         res.write(': keep-alive\n\n');
     }, 30000);
 
-    // Limpeza ao desconectar
+    // Limpeza quando o cliente fecha a aba ou perde conexão
     req.on('close', () => {
         console.log(`❌ Cliente saiu do fluxo ${type} (Canal: ${permissionChannel})`);
         clearInterval(keepAlive);
-        localSub.quit(); 
+        localSub.quit(); // Fecha a conexão Redis desse cliente específico
     });
 });
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log(`🚀 Servidor SSE Multi-Fluxo rodando na porta ${PORT}`);
+    console.log(`🚀 Servidor SSE Multi-Fluxo (UTF-8) rodando na porta ${PORT}`);
 });
