@@ -7,7 +7,7 @@ services:
     restart: always
     environment:
       - REDIS_URL=${REDIS_URL}
-      - PORT=3000
+      - PORT=3007
     networks:
       - loopspa-network
       - dokploy-network   # <--- ADICIONEI AQUI (Conexão com a Internet/Dokploy)
@@ -21,3 +21,4 @@ networks:
     external: true
   dokploy-network:        # <--- ADICIONEI AQUI (Declaração da rede)
     external: true
+
