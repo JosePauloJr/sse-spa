@@ -74,7 +74,8 @@ app.get('/events', async (req, res) => {
     });
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3007;
 app.listen(PORT, () => {
     console.log(`🚀 Servidor SSE Multi-Fluxo (UTF-8) rodando na porta ${PORT}`);
 });
+
